@@ -1,0 +1,21 @@
+[package]
+name = "msnlib-rs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+zenodo-rs = { version = "0.3", features = ["checksums"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+mascot-rs = { git = "https://github.com/earth-metabolome-initiative/mascot-rs", rev = "a4635bb5403546915c92ca237b345a59bf8d2e74", default-features = false, features = ["std"] }
+# Held at 59: parquet 60 marks Float64 columns with the IEEE_754_TOTAL_ORDER column order,
+# which readers on parquet <= 55 (e.g. xan 0.61) reject as "Could not parse metadata: bad data".
+parquet = { version = "59", default-features = false, features = ["arrow", "zstd"] }
+arrow-array = "59"
+arrow-schema = "59"
+clap = { version = "4.6", features = ["derive"] }
+dotenvy = "0.15"
+anyhow = "1"
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"
