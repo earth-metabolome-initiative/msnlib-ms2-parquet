@@ -1,3 +1,4 @@
+mod build;
 mod download;
 mod line_source;
 
@@ -29,6 +30,15 @@ enum Command {
         #[arg(long)]
         force: bool,
     },
+    /// Parse the downloaded MGF files and write the Parquet dataset.
+    Build {
+        /// Directory containing the downloaded `*ms2.mgf` files.
+        #[arg(long, default_value = "downloads")]
+        input_dir: PathBuf,
+        /// Output Parquet file.
+        #[arg(long, default_value = "output/msnlib_ms2.parquet")]
+        output: PathBuf,
+    },
 }
 
 #[tokio::main]
@@ -36,5 +46,6 @@ async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
     match Cli::parse().command {
         Command::Download { dir, force } => download::run(&dir, force).await,
+        Command::Build { input_dir, output } => build::run(&input_dir, &output),
     }
 }
