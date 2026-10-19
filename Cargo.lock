@@ -1244,7 +1244,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "msnlib-rs"
+name = "msnlib-ms2-parquet"
 version = "0.1.0"
 dependencies = [
  "anyhow",

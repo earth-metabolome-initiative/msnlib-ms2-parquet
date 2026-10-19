@@ -44,7 +44,12 @@ pub async fn run(
 ) -> anyhow::Result<()> {
     let metadata = deposit_metadata(creator_from_env()?, dataset_version)?;
     let len = std::fs::metadata(file)
-        .map_err(|_| anyhow!("{} not found; run `msnlib-rs build` first", file.display()))?
+        .map_err(|_| {
+            anyhow!(
+                "{} not found; run `msnlib-ms2-parquet build` first",
+                file.display()
+            )
+        })?
         .len();
     let file_name = file
         .file_name()
@@ -83,7 +88,7 @@ pub async fn run(
     eprintln!("doi: {}", doi(published.record.doi));
     eprintln!("concept doi: {}", doi(published.record.conceptdoi));
     eprintln!(
-        "next version: msnlib-rs publish --new-version {} --dataset-version <LABEL>",
+        "next version: msnlib-ms2-parquet publish --new-version {} --dataset-version <LABEL>",
         published.deposition.id
     );
     Ok(())

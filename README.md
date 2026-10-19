@@ -1,4 +1,4 @@
-# msnlib-rs
+# msnlib-ms2-parquet
 
 Builds a [MassSpecGym](https://github.com/pluskal-lab/MassSpecGym)-style Parquet table from the MS2 spectra of
 [MSnLib v8](https://doi.org/10.5281/zenodo.21105617) (CC-BY-4.0), and publishes it to Zenodo as a dataset linked to

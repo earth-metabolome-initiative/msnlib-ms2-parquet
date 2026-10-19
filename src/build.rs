@@ -167,7 +167,7 @@ pub fn run(input_dir: &Path, output: &Path) -> anyhow::Result<()> {
     inputs.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
     if inputs.is_empty() {
         bail!(
-            "no *{MS2_SUFFIX} files in {}; run `msnlib-rs download` first",
+            "no *{MS2_SUFFIX} files in {}; run `msnlib-ms2-parquet download` first",
             input_dir.display()
         );
     }
