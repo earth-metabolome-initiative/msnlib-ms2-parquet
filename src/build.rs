@@ -375,6 +375,8 @@ struct DatasetWriter {
     buffered_rows: usize,
     rows: usize,
     scratch: String,
+    /// Scratch space for [`round_significant`].
+    number: String,
 }
 
 impl DatasetWriter {
@@ -401,6 +403,7 @@ impl DatasetWriter {
             buffered_rows: 0,
             rows: 0,
             scratch: String::new(),
+            number: String::new(),
         })
     }
 
@@ -428,9 +431,12 @@ impl DatasetWriter {
                     // mascot-rs rejects empty spectra and drops intensities <= 0,
                     // so the maximum is strictly positive.
                     let max = record.intensities().fold(f64::MIN, f64::max);
+                    let number = &mut self.number;
                     join_floats(
                         &mut self.scratch,
-                        record.intensities().map(|intensity| intensity / max),
+                        record
+                            .intensities()
+                            .map(|intensity| round_significant(intensity / max, number)),
                     )?;
                     builder.append(name, Some(&self.scratch))?;
                 }
@@ -469,6 +475,19 @@ impl DatasetWriter {
         self.writer.close()?;
         Ok(())
     }
+}
+
+/// Significant digits kept in normalized intensities: the most an `f64` holds
+/// reliably, so rounding never changes a value by more than its precision.
+const INTENSITY_DIGITS: usize = 15;
+
+/// Rounds `value` to [`INTENSITY_DIGITS`] significant digits, dropping the
+/// binary noise of the normalizing division: `0.257 / 100.0` then prints as
+/// `0.00257` instead of `0.0025700000000000002`. `buffer` is scratch space.
+fn round_significant(value: f64, buffer: &mut String) -> f64 {
+    buffer.clear();
+    write!(buffer, "{value:.*e}", INTENSITY_DIGITS - 1).expect("writing to a String cannot fail");
+    buffer.parse().expect("a formatted finite f64 parses back")
 }
 
 /// Writes `values` into `out` as comma-separated `{:?}` floats (`1.0`, `40.018979`).
@@ -627,10 +646,15 @@ mod tests {
         assert_eq!(ints("mslevel"), [2, 2]);
 
         for (mzs, intensities) in row_values("mzs").iter().zip(row_values("intensities")) {
-            let intensities: Vec<f64> = intensities
-                .split(',')
-                .map(str::parse)
-                .collect::<Result<_, _>>()?;
+            // Peaks 1, 7 and 23 are 0.257, 0.17 and 4.379 over a base peak of 100;
+            // plain division prints them as 0.0025700000000000002, 0.0017000000000000001
+            // and 0.043789999999999996.
+            let text: Vec<&str> = intensities.split(',').collect();
+            assert_eq!(
+                [text[0], text[6], text[22]],
+                ["0.00257", "0.0017", "0.04379"]
+            );
+            let intensities: Vec<f64> = text.iter().map(|v| v.parse()).collect::<Result<_, _>>()?;
             assert_eq!(intensities.len(), 36);
             assert_eq!(mzs.split(',').count(), 36);
             assert_eq!(intensities.iter().filter(|&&v| v == 1.0).count(), 1);

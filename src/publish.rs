@@ -24,7 +24,8 @@ const DESCRIPTION_HTML: &str = "\
 Nat Methods doi:10.1038/s41592-025-02813-0), licensed CC-BY-4.0.</p>\
 <p>Processing: the files were parsed with mascot-rs in strict mode; records failing SMILES, formula, \
 adduct&ndash;charge&ndash;ion-mode, retention-time or peak validation were excluded.</p>\
-<p>Normalization: intensities are divided by the spectrum's highest peak (max = 1.0). \
+<p>Normalization: intensities are divided by the spectrum's highest peak (max = 1.0) and rounded to 15 significant \
+digits, which removes binary floating-point noise such as 0.0025700000000000002 for 0.00257. \
 <code>collision_energy</code> lists are flattened to comma-separated values.</p>\
 <p>Columns follow MassSpecGym: identifier, mzs, intensities, smiles, inchikey (full InChIKey from INCHIAUX), formula, \
 parent_mass (EXACTMASS), precursor_mz (PEPMASS), adduct, instrument_type, collision_energy; followed by all remaining \

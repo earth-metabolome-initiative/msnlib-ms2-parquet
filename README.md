@@ -46,7 +46,7 @@ MGF value is null.
 |---|---|
 | identifier | `MSnLibID0000001`, … numbered over accepted records in file-name order, then in-file order |
 | mzs | peak m/z values, comma-separated, ascending |
-| intensities | peak intensities divided by the spectrum's highest peak (max = `1.0`), comma-separated |
+| intensities | peak intensities divided by the spectrum's highest peak (max = `1.0`) and rounded to 15 significant digits to drop binary floating-point noise (`0.00257`, not `0.0025700000000000002`), comma-separated |
 | smiles | `SMILES` |
 | inchikey | `INCHIAUX` (full InChIKey) |
 | formula | `FORMULA` |
