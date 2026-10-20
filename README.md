@@ -6,7 +6,8 @@ MSnLib v8 with `isDerivedFrom`.
 
 The `*ms2.mgf` files are parsed with [mascot-rs](https://github.com/earth-metabolome-initiative/mascot-rs) in strict
 mode. Records that fail its validation (SMILES, formula vs. SMILES, adduct/charge/ion mode, retention time, peaks) are
-skipped and counted per file.
+skipped and counted per file. `build` stops with an error if a written `ionmode` and `charge` disagree in sign
+(`negative` needs a charge < 0, `positive` a charge > 0).
 
 ## Prerequisites
 

@@ -39,6 +39,9 @@ const COLLISION_ENERGY_KEY: &str = "COLLISION_ENERGY";
 const NUM_PEAKS_KEY: &str = "Num peaks";
 /// Written in lowercase: MSnLib releases spell it `Positive` or `POSITIVE`.
 const IONMODE_KEY: &str = "IONMODE";
+const CHARGE_KEY: &str = "CHARGE";
+/// Identifies a record in error messages.
+const SCANS_KEY: &str = "SCANS";
 
 /// Per-file parsing outcome.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -144,6 +147,29 @@ fn parse_int(value: &str) -> Option<i64> {
     value.trim().parse::<i64>().ok()
 }
 
+/// Fails unless the written `ionmode` and `charge` agree in polarity:
+/// `negative` requires a charge < 0 and `positive` a charge > 0. Records with
+/// another or no ion mode are not checked.
+fn check_polarity(ionmode: Option<&str>, charge: Option<&str>) -> anyhow::Result<()> {
+    let Some(ionmode) = ionmode else {
+        return Ok(());
+    };
+    let (polarity, sign) = if ionmode.eq_ignore_ascii_case("negative") {
+        ("negative", -1)
+    } else if ionmode.eq_ignore_ascii_case("positive") {
+        ("positive", 1)
+    } else {
+        return Ok(());
+    };
+    if charge.and_then(parse_int).map(i64::signum) != Some(sign) {
+        bail!(
+            "ionmode {polarity} requires a {polarity} charge, got {}",
+            charge.unwrap_or("none")
+        );
+    }
+    Ok(())
+}
+
 /// Parses an MGF header value as a finite float.
 fn parse_float(value: &str) -> Option<f64> {
     value
@@ -197,13 +223,29 @@ pub fn run(input_dir: &Path, output: &Path) -> anyhow::Result<()> {
 /// Parses `inputs` in order and writes one row per accepted record to `output`.
 ///
 /// Runs two passes: the first collects the header keys and their value types
-/// that define the schema, the second writes the rows.
+/// that define the schema and checks every record with [`check_polarity`],
+/// the second writes the rows.
 pub fn build_dataset(inputs: &[PathBuf], output: &Path) -> anyhow::Result<Vec<FileStats>> {
+    let [ionmode_key, charge_key, scans_key] =
+        [IONMODE_KEY, CHARGE_KEY, SCANS_KEY].map(|key| format!("{RAW_PREFIX}{key}"));
     let mut key_kinds = KeyKinds::new();
     let mut stats = Vec::with_capacity(inputs.len());
     for path in inputs {
         stats.push(for_each_record(path, |record| {
-            for (key, value) in record.metadata().arbitrary_metadata() {
+            let metadata = record.metadata();
+            let raw = |key: &str| {
+                metadata
+                    .arbitrary_metadata_value(key)
+                    .filter(|value| !value.is_empty())
+            };
+            check_polarity(raw(&ionmode_key), raw(&charge_key)).with_context(|| {
+                format!(
+                    "{}: record with SCANS={}",
+                    path.display(),
+                    raw(&scans_key).unwrap_or("none")
+                )
+            })?;
+            for (key, value) in metadata.arbitrary_metadata() {
                 let Some(raw_key) = key.strip_prefix(RAW_PREFIX) else {
                     continue;
                 };
@@ -541,6 +583,32 @@ mod tests {
         );
         assert_eq!(normalize_collision_energy("[]"), None);
         assert_eq!(normalize_collision_energy(""), None);
+    }
+
+    #[test]
+    fn polarity() {
+        for (ionmode, charge) in [
+            (Some("negative"), Some("-1")),
+            (Some("NEGATIVE"), Some("-2")),
+            (Some("Positive"), Some("1")),
+            (None, Some("-1")),
+        ] {
+            assert!(
+                check_polarity(ionmode, charge).is_ok(),
+                "{ionmode:?} {charge:?}"
+            );
+        }
+        for (ionmode, charge) in [
+            (Some("negative"), Some("1")),
+            (Some("Positive"), Some("-1")),
+            (Some("positive"), Some("0")),
+            (Some("negative"), None),
+        ] {
+            assert!(
+                check_polarity(ionmode, charge).is_err(),
+                "{ionmode:?} {charge:?}"
+            );
+        }
     }
 
     #[test]
