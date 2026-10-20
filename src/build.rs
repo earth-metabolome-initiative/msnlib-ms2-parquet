@@ -37,6 +37,8 @@ const COLLISION_ENERGY_KEY: &str = "COLLISION_ENERGY";
 /// Describes the original peak list, which can disagree with `mzs` after
 /// mascot-rs drops zero-intensity peaks and merges duplicate m/z values.
 const NUM_PEAKS_KEY: &str = "Num peaks";
+/// Written in lowercase: MSnLib releases spell it `Positive` or `POSITIVE`.
+const IONMODE_KEY: &str = "IONMODE";
 
 /// Per-file parsing outcome.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -54,6 +56,8 @@ enum ColumnSource {
     CollisionEnergy(String),
     /// Lookup key (`MSNLIB_RAW:KEY`) of the verbatim header copy.
     Raw(String),
+    /// Lookup key (`MSNLIB_RAW:KEY`) of a verbatim header copy written in lowercase.
+    Lowercase(String),
     SourceFile,
 }
 
@@ -292,7 +296,11 @@ fn columns(key_kinds: &KeyKinds) -> anyhow::Result<Vec<Column>> {
                 key.to_ascii_lowercase().replace(' ', "_"),
                 key,
                 key_kinds,
-                ColumnSource::Raw,
+                if key == IONMODE_KEY {
+                    ColumnSource::Lowercase
+                } else {
+                    ColumnSource::Raw
+                },
             )
         })
         .collect();
@@ -445,6 +453,15 @@ impl DatasetWriter {
                     builder.append(name, value.as_deref())?;
                 }
                 ColumnSource::Raw(key) => builder.append(name, raw(key))?,
+                ColumnSource::Lowercase(key) => match raw(key) {
+                    Some(value) => {
+                        self.scratch.clear();
+                        self.scratch.push_str(value);
+                        self.scratch.make_ascii_lowercase();
+                        builder.append(name, Some(&self.scratch))?;
+                    }
+                    None => builder.append(name, None)?,
+                },
                 ColumnSource::SourceFile => builder.append(name, Some(source_file))?,
             }
         }
@@ -536,7 +553,8 @@ mod tests {
                 "COLLISION_ENERGY=60.0",
             )
             .replace("SPECTYPE=ALL_ENERGIES", "SPECTYPE=SAME_ENERGY")
-            .replace("RTINSECONDS=48.22", "RTINSECONDS=48");
+            .replace("RTINSECONDS=48.22", "RTINSECONDS=48")
+            .replace("IONMODE=Negative", "IONMODE=NEGATIVE");
         let dir = tempfile::tempdir()?;
         let input = dir.path().join("sample_ms2.mgf");
         std::fs::write(&input, [crlf, bad_formula, single_energy].join("\n"))?;
@@ -607,6 +625,8 @@ mod tests {
         for row in row_values("source_instrument") {
             assert_eq!(row, "Orbitrap ID-X");
         }
+        // `Negative` and `NEGATIVE` collapse to one spelling.
+        assert_eq!(row_values("ionmode"), ["negative", "negative"]);
         for row in row_values("inchikey") {
             assert_eq!(row, "OTVRPAYVXOGAPS-HNNXBMFYSA-N");
         }
