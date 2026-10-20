@@ -30,8 +30,16 @@ A later build is published as a new version of the same Zenodo concept record; t
 cargo run --release -- publish --new-version <DEPOSITION_ID> --dataset-version v2
 ```
 
+After editing the metadata in `src/publish.rs` (e.g. the description), apply it to a published record without
+uploading files:
+
+```sh
+cargo run --release -- update-metadata --deposition <DEPOSITION_ID> --dataset-version v3
+```
+
 `download` skips files already present with the size Zenodo reports (`--force` downloads again); downloads are
-md5-verified before they are written. `publish` needs `ZENODO_TOKEN` (or `ZENODO_SANDBOX_TOKEN` with `--sandbox`) and
+md5-verified before they are written. `publish` and `update-metadata` need `ZENODO_TOKEN` (or `ZENODO_SANDBOX_TOKEN`
+with `--sandbox`) and
 `ZENODO_CREATOR`; `ZENODO_ORCID` and `ZENODO_AFFILIATION` are optional. Without `--new-version`, every non-dry run
 creates a new Zenodo record.
 

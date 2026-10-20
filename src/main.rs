@@ -60,6 +60,21 @@ enum Command {
         #[arg(long, value_name = "LABEL")]
         dataset_version: Option<String>,
     },
+    /// Replace the metadata of a published deposition, e.g. after editing the description.
+    UpdateMetadata {
+        /// Deposition id of the published record to update.
+        #[arg(long, value_name = "DEPOSITION_ID")]
+        deposition: u64,
+        /// Version label the record keeps, e.g. `v3`.
+        #[arg(long, value_name = "LABEL")]
+        dataset_version: String,
+        /// Update the record on sandbox.zenodo.org using ZENODO_SANDBOX_TOKEN.
+        #[arg(long)]
+        sandbox: bool,
+        /// Print the deposit metadata without contacting Zenodo.
+        #[arg(long)]
+        dry_run: bool,
+    },
 }
 
 #[tokio::main]
@@ -78,5 +93,11 @@ async fn main() -> anyhow::Result<()> {
             let dataset_version = dataset_version.as_deref().unwrap_or("v1");
             publish::run(&file, sandbox, dry_run, new_version, dataset_version).await
         }
+        Command::UpdateMetadata {
+            deposition,
+            dataset_version,
+            sandbox,
+            dry_run,
+        } => publish::update_metadata(deposition, sandbox, dry_run, &dataset_version).await,
     }
 }

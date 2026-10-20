@@ -24,8 +24,7 @@ const DESCRIPTION_HTML: &str = "\
 Nat Methods doi:10.1038/s41592-025-02813-0), licensed CC-BY-4.0.</p>\
 <p>Processing: the files were parsed with mascot-rs in strict mode; records failing SMILES, formula, \
 adduct&ndash;charge&ndash;ion-mode, retention-time or peak validation were excluded.</p>\
-<p>Normalization: intensities are divided by the spectrum's highest peak (max = 1.0) and rounded to 15 significant \
-digits, which removes binary floating-point noise such as 0.0025700000000000002 for 0.00257. \
+<p>Normalization: intensities are divided by the spectrum's highest peak (max = 1.0). \
 <code>collision_energy</code> lists are flattened to comma-separated values.</p>\
 <p>Columns follow MassSpecGym: identifier, mzs, intensities, smiles, inchikey (full InChIKey from INCHIAUX), formula, \
 parent_mass (EXACTMASS), precursor_mz (PEPMASS), adduct, instrument_type, collision_energy; followed by all remaining \
@@ -68,11 +67,7 @@ pub async fn run(
         return Ok(());
     }
 
-    let client = if sandbox {
-        ZenodoClient::from_sandbox_env()?
-    } else {
-        ZenodoClient::from_env()?
-    };
+    let client = client(sandbox)?;
     let files = UploadSpec::from_named_paths([(file_name, file)])?;
     eprintln!("uploading {file_name} ({len} B) to {target}");
     let published = match new_version {
@@ -93,6 +88,38 @@ pub async fn run(
         published.deposition.id
     );
     Ok(())
+}
+
+/// Replaces the metadata of the published deposition `id` with the current
+/// deposit metadata, labelled `dataset_version`; its files are unchanged.
+pub async fn update_metadata(
+    id: u64,
+    sandbox: bool,
+    dry_run: bool,
+    dataset_version: &str,
+) -> anyhow::Result<()> {
+    let metadata = deposit_metadata(creator_from_env()?, dataset_version)?;
+    if dry_run {
+        println!("{}", serde_json::to_string_pretty(&metadata)?);
+        eprintln!("would replace the metadata of deposition {id}");
+        return Ok(());
+    }
+
+    let client = client(sandbox)?;
+    let id = DepositionId(id);
+    client.enter_edit_mode(id).await?;
+    client.update_metadata(id, &metadata).await?;
+    let published = client.publish(id).await?;
+    eprintln!("updated the metadata of deposition {}", published.id);
+    Ok(())
+}
+
+fn client(sandbox: bool) -> anyhow::Result<ZenodoClient> {
+    Ok(if sandbox {
+        ZenodoClient::from_sandbox_env()?
+    } else {
+        ZenodoClient::from_env()?
+    })
 }
 
 fn creator_from_env() -> anyhow::Result<Creator> {
